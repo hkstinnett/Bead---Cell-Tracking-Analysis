@@ -138,8 +138,8 @@ par(mfrow=c(1,2))
 #to plot distances in microns
 
 plot(1:100, Distance.fgf8.mean-Distance.fgf8.mean[1],
-     type="l", lwd=2, col="maroon",main="Fgf24 deficient background",
-     xlab="Time/8 min",ylab="change in average bead-cell distance (um)", ylim=c(-50, 10))
+     type="l", lwd=2, col="maroon",main="Tbx5a deficient background",
+     xlab="Time/8 min",ylab="change in average bead-cell distance (um)", ylim=c(-20, 40))
 
 
 lines(1:100, lwd=2, Distance.ctrl.mean-Distance.ctrl.mean[1], col="black")
@@ -220,4 +220,73 @@ CI_low_ctrl<-(Distance.ctrl.mean-1.96*Distance.ctrl.sd/sqrt(160))/Distance.ctrl.
 polygon(c(1:100, rev(1:100)), c(CI_high_ctrl, rev(CI_low_ctrl)), col = rgb(0.2,0.2,0.2, alpha=0.2), border = NA)
 lines(1:100, Distance.ctrl.mean/Distance.ctrl.mean[1], col="black")
 
+#okay, time to analyze some other stuff
+#calculate change in speed for all: Speed[time, track, embryo]
 
+Speed.fgf8<-sapply(sub.fgf8, function (embryo) by(embryo, embryo$Track, 
+                             function(embryo.track) sqrt((embryo.track$X[1:99]-embryo.track$X[-1])^2+(embryo.track$Y[1:99]-embryo.track$Y[-1])^2)))
+Speed.fgf8<-unlist(Speed.fgf8)
+dim(Speed.fgf8)<-c((n_fgftimepoints - 1),n_fgfcells,(length(sub.fgf8)))
+
+#below is the hard coded version to make sure this works correctly
+#dim(Speed.fgf8)<-c(99,30,6)
+
+
+Speed.ctrl<-sapply(sub.ctrl, function (embryo) by(embryo, embryo$Track, function(embryo.track) sqrt((embryo.track$X[1:99]-embryo.track$X[-1])^2+(embryo.track$Y[1:99]-embryo.track$Y[-1])^2)))
+Speed.ctrl<-unlist(Speed.ctrl)
+dim(Speed.ctrl)<-c((n_ctrltimepoints - 1),n_ctrlcells,(length(sub.ctrl)))
+
+#dim(Speed.ctrl)<-c(99,30,5)
+
+Speed.fgf8.mean<-apply(Speed.fgf8, c(2,3), mean)
+Speed.ctrl.mean<-apply(Speed.ctrl, c(2,3), mean)
+Speed.fgf8.sd<-apply(Speed.fgf8, c(2,3), sd)
+Speed.ctrl.sd<-apply(Speed.ctrl, c(2,3), sd)
+
+barx<-barplot(c(mean(Speed.fgf8.mean),mean(Speed.ctrl.mean)),col=c("maroon","black"),ylim=c(0,5),ylab="instantaneous speed")
+
+error.bar <- function(x, y, upper, lower=upper, length=0.1){
+  if(length(x) != length(y) | length(y) !=length(lower) | length(lower) != length(upper))
+    stop("vectors must be same length")
+  arrows(x,y+upper, x, y-lower, angle=90, code=3, length=length)}
+
+wilcox.test(Speed.fgf8.mean,Speed.ctrl.mean)
+
+# plot(99:1, Speed.fgf8.mean/Speed.fgf8.mean[99],type="l",col="orange",main="fgf8 in orange, control in blue",xlab="Time/8 min",ylab="fold change of bead-cell Speed")
+# lines(99:1, (Speed.fgf8.mean+Speed.fgf8.sd/sqrt(160))/Speed.fgf8.mean[99], col="orange",lty="dashed")
+# lines(99:1, (Speed.fgf8.mean-Speed.fgf8.sd/sqrt(160))/Speed.fgf8.mean[99], col="orange",lty="dashed")
+# lines(99:1, Speed.ctrl.mean/Speed.ctrl.mean[99], col="blue")
+# lines(99:1, (Speed.ctrl.mean+Speed.ctrl.sd/sqrt(160))/Speed.ctrl.mean[99], col="blue",lty="dashed")
+# lines(99:1, (Speed.ctrl.mean-Speed.ctrl.sd/sqrt(160))/Speed.ctrl.mean[99], col="blue",lty="dashed")
+
+
+#calculate change in Persistence for all: Persistence[time, track, embryo]
+
+D.fgf8<-sapply(sub.fgf8, function (embryo) by(embryo, embryo$Track, function(embryo.track) sqrt((embryo.track$X[100]-embryo.track$X[1])^2+(embryo.track$Y[100]-embryo.track$Y[1])^2)))
+D.fgf8<-unlist(D.fgf8)
+dim(D.fgf8)<-c(n_fgfcells,(length(sub.fgf8)))
+#dim(D.fgf8)<-c(20,8)
+
+D.ctrl<-sapply(sub.ctrl, function (embryo) by(embryo, embryo$Track, function(embryo.track) sqrt((embryo.track$X[100]-embryo.track$X[1])^2+(embryo.track$Y[100]-embryo.track$Y[1])^2)))
+D.ctrl<-unlist(D.ctrl)
+dim(D.ctrl)<-c(n_ctrlcells, (length(sub.ctrl)))
+#dim(D.ctrl)<-c(20,8)
+
+Persistence.fgf8<-D.fgf8/apply(Speed.fgf8, c(2,3), sum)
+Persistence.ctrl<-D.ctrl/apply(Speed.ctrl, c(2,3), sum)
+
+Persistence.fgf8.mean<-mean(Persistence.fgf8)
+Persistence.ctrl.mean<-mean(Persistence.ctrl)
+Persistence.fgf8.sd<-sd(Persistence.fgf8)
+Persistence.ctrl.sd<-sd(Persistence.ctrl)
+
+barpersist<-barplot(c(Persistence.fgf8.mean,Persistence.ctrl.mean),col=c("maroon","black"),ylim=c(0,0.3),ylab="persistence")
+
+error.bar <- function(x, y, upper, lower=upper, length=0.1){
+  if(length(x) != length(y) | length(y) !=length(lower) | length(lower) != length(upper))
+    stop("vectors must be same length")
+  arrows(x,y+upper, x, y-lower, angle=90, code=3, length=length)}
+
+error.bar(barpersist,c(mean(Persistence.fgf8.mean),mean(Persistence.ctrl.mean)),1.96*c(mean(Persistence.fgf8.sd),mean(Persistence.ctrl.sd))/sqrt(160))
+
+wilcox.test(Persistence.fgf8,Persistence.ctrl)
